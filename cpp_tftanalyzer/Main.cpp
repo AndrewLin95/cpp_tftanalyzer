@@ -1,30 +1,74 @@
 #include <Windows.h>
-//#include <TlHelp32.h>
-#include <iostream>
-//#include <tchar.h> // _tcscmp
-//#include <vector>
 
-//DWORD GetModuleBaseAddress(TCHAR* lpszModuleName, DWORD pID) {
-//    DWORD dwModuleBaseAddress = 0;
-//    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pID); // make snapshot of all modules within process
-//    MODULEENTRY32 ModuleEntry32 = { 0 };
-//    ModuleEntry32.dwSize = sizeof(MODULEENTRY32);
+#include <iostream>
+#include <tchar.h> // _tcscmp
+//#include <vector>
+// 
+#include <TlHelp32.h>
+#include <windows.h>
+
+//uintptr_t GetModuleBaseAddress(DWORD procId, wchar_t* modName)
+//{
+//    //initialize to zero for error checking
+//    uintptr_t modBaseAddr = 0;
 //
-//    if (Module32First(hSnapshot, &ModuleEntry32)) //store first Module in ModuleEntry32
+//    //get a handle to a snapshot of all modules
+//    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, procId);
+//
+//    //check if it's valid
+//    if (hSnap != INVALID_HANDLE_VALUE)
 //    {
-//        do {
-//            if (_tcscmp(ModuleEntry32.szModule, lpszModuleName) == 0) // if Found Module matches Module we look for -> done!
+//        //this struct holds the actual module information
+//        MODULEENTRY32 modEntry{};
+//
+//        //this is required for the function to work
+//        modEntry.dwSize = sizeof(modEntry);
+//
+//        //If a module exists, get it's entry
+//        if (Module32First(hSnap, &modEntry))
+//        {
+//            //loop through the modules
+//            do
 //            {
-//                dwModuleBaseAddress = (DWORD)ModuleEntry32.modBaseAddr;
-//                break;
-//            }
-//        } while (Module32Next(hSnapshot, &ModuleEntry32)); // go through Module entries in Snapshot and store in ModuleEntry32
+//                //compare the module name against ours
+//                if (!_wcsicmp(modEntry.szModule, modName))
+//                {
+//                    //copy the base address and break out of the loop
+//                    modBaseAddr = (uintptr_t)modEntry.modBaseAddr;
+//                    break;
+//                }
 //
-//
+//                //each iteration we grab the next module entry
+//            } while (Module32Next(hSnap, &modEntry));
+//        }
 //    }
-//    CloseHandle(hSnapshot);
-//    return dwModuleBaseAddress;
+//
+//    //free the handle
+//    CloseHandle(hSnap);
+//    return modBaseAddr;
 //}
+
+DWORD GetModuleBaseAddress(TCHAR* lpszModuleName, DWORD pID) {
+    DWORD dwModuleBaseAddress = 0;
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pID); // make snapshot of all modules within process
+    MODULEENTRY32 ModuleEntry32 = { 0 };
+    ModuleEntry32.dwSize = sizeof(MODULEENTRY32);
+
+    if (Module32First(hSnapshot, &ModuleEntry32)) //store first Module in ModuleEntry32
+    {
+        do {
+            if (_tcscmp(ModuleEntry32.szModule, lpszModuleName) == 0) // if Found Module matches Module we look for -> done!
+            {
+                dwModuleBaseAddress = (DWORD)ModuleEntry32.modBaseAddr;
+                break;
+            }
+        } while (Module32Next(hSnapshot, &ModuleEntry32)); // go through Module entries in Snapshot and store in ModuleEntry32
+
+
+    }
+    CloseHandle(hSnapshot);
+    return dwModuleBaseAddress;
+}
 
 int main() {
 
@@ -39,17 +83,21 @@ int main() {
         std::cout << "pID: " << pID << std::endl;
     };
 
+    GetWindowThreadProcessId(hGameWindow, &pID);
+    HANDLE processHandle = NULL;
+     
+    processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pID);
+    if (processHandle == INVALID_HANDLE_VALUE || processHandle == NULL) { // error handling
+        std::cout << "Failed to open process" << std::endl;
+        return 0;
+    }
 
-    //GetWindowThreadProcessId(hGameWindow, &pID);
-    //HANDLE processHandle = NULL;
-    //processHandle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pID);
-    //if (processHandle == INVALID_HANDLE_VALUE || processHandle == NULL) { // error handling
-    //    std::cout << "Failed to open process" << std::endl;
-    //    return 0;
-    //}
+    char gameName[] = "Sun Haven.exe";
+    DWORD gameBaseAddress = GetModuleBaseAddress(_T(gameName), pID);
+    std::cout << "Game Base Address: " << gameBaseAddress << std::endl;
 
-    //char gameName[] = "Zuma.exe";
-    //DWORD gameBaseAddress = GetModuleBaseAddress(_T(gameName), pID);
+
+
     //DWORD offsetGameToBaseAdress = 0x001F4FC0;
     //std::vector<DWORD> pointsOffsets{ 0x68,0x88,0x08,0x00,0x08,0xA0,0x90,0x10,0xE8 };
     //DWORD baseAddress = NULL;
